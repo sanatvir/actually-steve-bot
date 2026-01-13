@@ -15,9 +15,10 @@ app.listen(PORT, () => {
 
 // 2. BOT CONFIGURATION
 const botArgs = {
-    host: 'iamvir_.aternos.me:60814', // <--- Replace with your Aternos IP
+    host: 'iamvir_.aternos.me', // <--- ONLY the name here (No colon, no numbers)
+    port: 60814,                // <--- Put the numbers here separately
     username: 'Actually_Steve',
-    version: '1.20.1',             // <--- Match your Minecraft version
+    version: '1.20.1',          
 };
 
 function initBot() {
