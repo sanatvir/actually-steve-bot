@@ -1,79 +1,70 @@
 const mineflayer = require('mineflayer');
 const express = require('express');
 
-// 1. WEB SERVER: This prevents Koyeb from shutting down the app.
+// 1. WEB HEARTBEAT (KEEPS KOYEB ALIVE)
 const app = express();
-const PORT = process.env.PORT || 3000;
-
 app.get('/', (req, res) => {
     res.send('Actually_Steve System: 24/7 Operational');
 });
-
-app.listen(PORT, () => {
-    console.log(`Web monitor listening on port ${PORT}`);
+app.listen(3000, () => {
+    console.log('Web monitor listening on port 3000');
 });
 
 // 2. BOT CONFIGURATION
 const botArgs = {
-    host: 'iamvir_.aternos.me', // <--- ONLY the name here (No colon, no numbers)
-    port: 60814,                // <--- Put the numbers here separately
+    host: 'iamvir_.aternos.me', 
+    port: 60814,                
     username: 'Actually_Steve',
     version: '1.20.1',          
 };
 
-function initBot() {
-    const bot = mineflayer.createBot(botArgs);
+let bot;
 
-    // When the bot enters the world
+// 3. MAIN BOT FUNCTION
+const createBot = () => {
+    bot = mineflayer.createBot(botArgs);
+
     bot.on('spawn', () => {
         console.log('Actually_Steve has spawned. Initializing Movement Engine...');
-        
-        // --- RANDOMIZED MOVEMENT ENGINE ---
-        const startMoving = () => {
-            const actions = ['forward', 'back', 'left', 'right', 'jump', 'sneak'];
-            const randomAction = actions[Math.floor(Math.random() * actions.length)];
-            
-            // Start the movement
-            bot.setControlState(randomAction, true);
-            
-            // Hold the key for a random time (200ms to 800ms)
-            const holdTime = Math.random() * 600 + 200;
-            
-            setTimeout(() => {
-                bot.setControlState(randomAction, false);
-                
-                // Randomly look around (Yaw and Pitch)
-                const yaw = Math.random() * 6.2;
-                const pitch = (Math.random() - 0.5) * 2;
-                bot.look(yaw, pitch);
-                
-                // 30% chance to swing the arm (looks like hitting/mining)
-                if (Math.random() < 0.3) bot.swingArm();
-
-                // --- 10s TO 25s RANDOM DELAY ---
-                const nextDelay = Math.random() * (25000 - 10000) + 10000;
-                
-                console.log(`Next action in ${Math.round(nextDelay/1000)}s`);
-                setTimeout(startMoving, nextDelay);
-            }, holdTime);
-        };
-
         startMoving();
     });
 
-    // 3. AUTO-RECONNECT (The "No-Betrayal" System)
-    bot.on('end', (reason) => {
-        console.log(`Disconnected: ${reason}. Reconnecting in 40s...`);
-        setTimeout(initBot, 40000);
-    });
+    // HUMAN-LIKE MOVEMENT LOGIC (5-8 SECONDS)
+    const startMoving = () => {
+        if (!bot || !bot.entity) return;
 
-    // Error handling to prevent the script from crashing
+        const actions = ['forward', 'back', 'left', 'right', 'jump', 'sneak'];
+        const randomAction = actions[Math.floor(Math.random() * actions.length)];
+        
+        bot.setControlState(randomAction, true);
+        
+        // Key press duration
+        const holdTime = Math.random() * 300 + 200;
+        
+        setTimeout(() => {
+            bot.setControlState(randomAction, false);
+            
+            // Randomly look around
+            bot.look(Math.random() * 6.2, (Math.random() - 0.5) * 2);
+            
+            // --- UPDATED DELAY: 5s TO 8s ---
+            // 8000 is max (8s), 5000 is min (5s)
+            const nextDelay = Math.random() * (8000 - 5000) + 5000;
+            
+            console.log(`Steve: Action completed. Next move in ${Math.round(nextDelay/1000)}s`);
+            
+            setTimeout(startMoving, nextDelay);
+        }, holdTime);
+    };
+
     bot.on('error', (err) => {
-        console.log(`Error encountered: ${err.message}`);
-        if (err.code === 'ECONNREFUSED') {
-            setTimeout(initBot, 60000); // Wait longer if server is offline
-        }
+        console.log(`Error encountered: ${err.code}`);
     });
-}
 
-initBot();
+    bot.on('end', () => {
+        console.log('Disconnected. Reconnecting in 40s...');
+        setTimeout(createBot, 40000);
+    });
+};
+
+createBot();
