@@ -3,117 +3,106 @@ const express = require('express');
 const vec3 = require('vec3');
 
 const app = express();
-const PORT = process.env.PORT || 3000;
-app.get('/', (req, res) => res.send('Actually_Steve: Online & Fixed.'));
-app.listen(PORT, '0.0.0.0', () => console.log(`Uptime server live on port ${PORT}`));
+const PORT = process.env.PORT || 3000; // Updated Port for Steve
+
+// Keep Koyeb healthy with a web response
+app.get('/', (req, res) => res.send('Actually_Steve: Elite Stealth Engine Online.'));
+app.listen(PORT, '0.0.0.0', () => console.log(`Steve Uptime server live on port ${PORT}`));
 
 const botArgs = {
     host: 'PIXELSMP-coHE.aternos.me',
-    username: 'Actually_Steve',
+    username: 'Actually_Steve', // Updated Username
     version: '1.20.1',
 };
 
 let bot;
 let isBypassing = false;
 let isEscaping = false;
-let lastPosition = null;
-let stuckTicks = 0;
+let isLongPausing = false;
 
 function createBot() {
     bot = mineflayer.createBot(botArgs);
 
-    // --- MOVELOGIC DEFINITION (Moved here so everyone can see it) ---
+    const triggerLongPause = () => {
+        // Wait between 12 and 18 minutes for a long pause
+        const nextPauseDelay = (Math.random() * (18 - 12) + 12) * 60 * 1000;
+        setTimeout(() => {
+            isLongPausing = true;
+            bot.clearControlStates(); 
+            console.log("Steve starting a long silent pause (4-8s)...");
+            const pauseDuration = Math.random() * (8000 - 4000) + 4000;
+            setTimeout(() => {
+                isLongPausing = false;
+                console.log("Steve pause finished. Resuming.");
+                moveLogic(); 
+                triggerLongPause(); 
+            }, pauseDuration);
+        }, nextPauseDelay);
+    };
+
     const moveLogic = () => {
-        if (!bot || !bot.entity || isBypassing || isEscaping) {
-            setTimeout(moveLogic, 500);
+        if (!bot || !bot.entity || isBypassing || isEscaping || isLongPausing) {
+            if (!isLongPausing) setTimeout(moveLogic, 1000);
             return;
         }
 
-        if (lastPosition && bot.entity.position.distanceTo(lastPosition) < 0.15) {
-            stuckTicks++;
-        } else {
-            stuckTicks = 0;
-        }
-        lastPosition = bot.entity.position.clone();
+        // Random Sneak (15%)
+        bot.setControlState('sneak', Math.random() < 0.15);
 
-        const yaw = bot.entity.yaw;
-        const moveDir = new vec3(-Math.sin(yaw), 0, -Math.cos(yaw));
-        const blockInFront = bot.blockAt(bot.entity.position.plus(moveDir.scaled(1)));
+        // Random Jump (10%)
+        if (Math.random() < 0.1) {
+            bot.setControlState('jump', true);
+            setTimeout(() => bot.setControlState('jump', false), 300);
+        }
+
+        // Random Sprint (40%)
+        bot.setControlState('sprint', Math.random() > 0.6);
+
+        // Randomized Movement Direction
+        const actions = ['forward', 'left', 'right', 'back'];
+        bot.clearControlStates(); 
+        bot.setControlState(actions[Math.floor(Math.random() * actions.length)], true);
         
-        if (blockInFront && blockInFront.boundingBox !== 'empty') {
-            if (stuckTicks > 3) {
-                bot.look(yaw + (Math.random() > 0.5 ? 1.5 : -1.5), 0);
-                stuckTicks = 0;
+        // Human Look Logic (Target heads/eyes)
+        if (Math.random() < 0.2) {
+            const nearby = bot.nearestEntity((e) => e.type === 'player');
+            if (nearby && bot.entity.position.distanceTo(nearby.position) < 10) {
+                bot.lookAt(nearby.position.plus(new vec3(0, 1.6, 0)));
             } else {
-                bot.setControlState('jump', true);
+                bot.look(bot.entity.yaw + (Math.random() - 0.5), (Math.random() - 0.5));
             }
-        } else {
-            bot.setControlState('jump', false);
         }
 
-        const actions = ['forward', 'left', 'right'];
-        bot.setControlState(actions[Math.floor(Math.random() * 3)], true);
-        bot.setControlState('sprint', Math.random() > 0.1);
+        if (Math.random() < 0.1) bot.swingArm('right');
 
-        const nearby = bot.nearestEntity((e) => e.type === 'player');
-        if (nearby && bot.entity.position.distanceTo(nearby.position) < 8) {
-            const offset = new vec3((Math.random() - 0.5), nearby.height * 0.8, (Math.random() - 0.5));
-            bot.lookAt(nearby.position.plus(offset));
-        } else {
-            bot.look(yaw + (Math.random() * 0.4 - 0.2), (Math.random() * 0.2 - 0.1), false);
-        }
-
-        if (Math.random() < 0.1) bot.swingArm('right'); 
-        if (Math.random() < 0.05) bot.setQuickBarSlot(Math.floor(Math.random() * 9));
-
-        setTimeout(moveLogic, Math.random() * 800 + 400); 
+        // Normal movement interval
+        setTimeout(moveLogic, Math.random() * 2000 + 2500);
     };
 
-    // --- REJOIN LOGIC ---
-    bot.on('end', () => {
-        const delay = Math.floor(Math.random() * 10000) + 5000; 
-        console.log(`Connection lost. Rejoining in ${delay / 1000}s...`);
-        setTimeout(createBot, delay);
-    });
-
-    // --- GREETING ---
-
-    // --- SPAWN EVENTS ---
     bot.on('spawn', () => {
-        console.log('🐐 STEALTH GOAT: All Features Active.');
-        
-        const scheduleBypass = () => {
-            setTimeout(() => {
-                isBypassing = true;
-                bot.clearControlStates();
-                setTimeout(() => {
-                    isBypassing = false;
-                    moveLogic();
-                    scheduleBypass();
-                }, Math.random() * 5000 + 5000);
-            }, 720000); 
-        };
-
-        moveLogic();
-        scheduleBypass();
-    });
-
-    // --- REACTIVE COMBAT (Fixed the ReferenceError) ---
-    bot.on('health', () => {
-        if (bot.health < 19 && !isEscaping) {
-            isEscaping = true;
-            bot.setControlState('back', true);
-            bot.setControlState('sprint', true);
-            bot.setControlState('jump', true);
-            setTimeout(() => { 
-                isEscaping = false; 
-                bot.clearControlStates();
-                moveLogic(); // This now works!
-            }, 5000);
+        // Physics settings applied safely after spawn
+        if (bot.physics) {
+            bot.physics.yield = true; 
+            bot.physics.maxUpdateDelay = 500; 
         }
+        
+        console.log('🐐 STEVE ELITE: Operational.');
+        moveLogic();
+        triggerLongPause(); 
     });
 
-    bot.on('error', (err) => console.log('Engine Error:', err.message));
+    bot.on('death', () => {
+        console.log("Steve died. Respawning...");
+        bot.respawn();
+    });
+
+    bot.on('end', () => {
+        const rejoinDelay = Math.random() * (10000 - 5000) + 5000;
+        console.log(`Connection lost. Steve rejoining randomly in ${rejoinDelay/1000}s...`);
+        setTimeout(createBot, rejoinDelay);
+    });
+
+    bot.on('error', (err) => console.log('Steve Engine Error:', err.message));
 }
 
 createBot();
