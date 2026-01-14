@@ -1,11 +1,10 @@
 const mineflayer = require('mineflayer');
 const express = require('express');
-const vec3 = require('vec3'); // Fixed: Added required library for coordinates
+const vec3 = require('vec3');
 
-// --- 1. CLOUD UPTIME ENGINE ---
 const app = express();
 const PORT = process.env.PORT || 3000;
-app.get('/', (req, res) => res.send('Actually_Steve: Sentient Stealth Engine Online.'));
+app.get('/', (req, res) => res.send('Actually_Steve: Online & Fixed.'));
 app.listen(PORT, '0.0.0.0', () => console.log(`Uptime server live on port ${PORT}`));
 
 const botArgs = {
@@ -23,84 +22,74 @@ let stuckTicks = 0;
 function createBot() {
     bot = mineflayer.createBot(botArgs);
 
-    // --- 2. REJOIN LOGIC (5-15s RANDOM) ---
+    // --- MOVELOGIC DEFINITION (Moved here so everyone can see it) ---
+    const moveLogic = () => {
+        if (!bot || !bot.entity || isBypassing || isEscaping) {
+            setTimeout(moveLogic, 500);
+            return;
+        }
+
+        if (lastPosition && bot.entity.position.distanceTo(lastPosition) < 0.15) {
+            stuckTicks++;
+        } else {
+            stuckTicks = 0;
+        }
+        lastPosition = bot.entity.position.clone();
+
+        const yaw = bot.entity.yaw;
+        const moveDir = new vec3(-Math.sin(yaw), 0, -Math.cos(yaw));
+        const blockInFront = bot.blockAt(bot.entity.position.plus(moveDir.scaled(1)));
+        
+        if (blockInFront && blockInFront.boundingBox !== 'empty') {
+            if (stuckTicks > 3) {
+                bot.look(yaw + (Math.random() > 0.5 ? 1.5 : -1.5), 0);
+                stuckTicks = 0;
+            } else {
+                bot.setControlState('jump', true);
+            }
+        } else {
+            bot.setControlState('jump', false);
+        }
+
+        const actions = ['forward', 'left', 'right'];
+        bot.setControlState(actions[Math.floor(Math.random() * 3)], true);
+        bot.setControlState('sprint', Math.random() > 0.1);
+
+        const nearby = bot.nearestEntity((e) => e.type === 'player');
+        if (nearby && bot.entity.position.distanceTo(nearby.position) < 8) {
+            const offset = new vec3((Math.random() - 0.5), nearby.height * 0.8, (Math.random() - 0.5));
+            bot.lookAt(nearby.position.plus(offset));
+        } else {
+            bot.look(yaw + (Math.random() * 0.4 - 0.2), (Math.random() * 0.2 - 0.1), false);
+        }
+
+        if (Math.random() < 0.1) bot.swingArm('right'); 
+        if (Math.random() < 0.05) bot.setQuickBarSlot(Math.floor(Math.random() * 9));
+
+        setTimeout(moveLogic, Math.random() * 800 + 400); 
+    };
+
+    // --- REJOIN LOGIC ---
     bot.on('end', () => {
         const delay = Math.floor(Math.random() * 10000) + 5000; 
         console.log(`Connection lost. Rejoining in ${delay / 1000}s...`);
         setTimeout(createBot, delay);
     });
 
-    bot.on('error', (err) => console.log('Engine Error:', err.message));
-    bot.on('kicked', (reason) => console.log('Kicked for:', reason));
-
-    // --- 3. SOCIAL CHAT (Greeting Feature) ---
+    // --- GREETING ---
     let lastWelcome = 0;
     bot.on('playerJoined', (player) => {
         const now = Date.now();
-        // Only greets if it's not the bot itself and 5 mins have passed since last greeting
         if (player.username !== bot.username && now - lastWelcome > 300000) { 
             bot.chat(`Hay Mate What's Up? I am the savior of this server! :)`);
             lastWelcome = now;
         }
     });
 
-    // --- 4. THE SENTIENT BRAIN ---
+    // --- SPAWN EVENTS ---
     bot.on('spawn', () => {
         console.log('🐐 STEALTH GOAT: All Features Active.');
-
-        const moveLogic = () => {
-            if (!bot || !bot.entity || isBypassing || isEscaping) {
-                setTimeout(moveLogic, 500);
-                return;
-            }
-
-            // --- STUCK DETECTION & SMART RECOVERY ---
-            if (lastPosition && bot.entity.position.distanceTo(lastPosition) < 0.15) {
-                stuckTicks++;
-            } else {
-                stuckTicks = 0;
-            }
-            lastPosition = bot.entity.position.clone();
-
-            const yaw = bot.entity.yaw;
-            // FIXED: Using the vec3 library correctly
-            const moveDir = new vec3(-Math.sin(yaw), 0, -Math.cos(yaw));
-            const blockInFront = bot.blockAt(bot.entity.position.plus(moveDir.scaled(1)));
-            
-            if (blockInFront && blockInFront.boundingBox !== 'empty') {
-                if (stuckTicks > 3) {
-                    // Turn away if jumping fails
-                    bot.look(yaw + (Math.random() > 0.5 ? 1.5 : -1.5), 0);
-                    stuckTicks = 0;
-                } else {
-                    bot.setControlState('jump', true);
-                }
-            } else {
-                bot.setControlState('jump', false);
-            }
-
-            // --- PERPETUAL MOTION ---
-            const actions = ['forward', 'left', 'right'];
-            bot.setControlState(actions[Math.floor(Math.random() * 3)], true);
-            bot.setControlState('sprint', Math.random() > 0.1);
-
-            // --- HUMANIZED LOOKING (Head Tracking + Random Offset) ---
-            const nearby = bot.nearestEntity((e) => e.type === 'player');
-            if (nearby && bot.entity.position.distanceTo(nearby.position) < 8) {
-                const offset = new vec3((Math.random() - 0.5), nearby.height * 0.8, (Math.random() - 0.5));
-                bot.lookAt(nearby.position.plus(offset));
-            } else {
-                bot.look(yaw + (Math.random() * 0.4 - 0.2), (Math.random() * 0.2 - 0.1), false);
-            }
-
-            // --- FIDGETS & INV SHUFFLE ---
-            if (Math.random() < 0.1) bot.swingArm('right'); 
-            if (Math.random() < 0.05) bot.setQuickBarSlot(Math.floor(Math.random() * 9));
-
-            setTimeout(moveLogic, Math.random() * 800 + 400); 
-        };
-
-        // --- 5. AFK BYPASS (Every 12 mins) ---
+        
         const scheduleBypass = () => {
             setTimeout(() => {
                 isBypassing = true;
@@ -117,7 +106,7 @@ function createBot() {
         scheduleBypass();
     });
 
-    // --- 6. REACTIVE COMBAT ESCAPE ---
+    // --- REACTIVE COMBAT (Fixed the ReferenceError) ---
     bot.on('health', () => {
         if (bot.health < 19 && !isEscaping) {
             isEscaping = true;
@@ -127,10 +116,12 @@ function createBot() {
             setTimeout(() => { 
                 isEscaping = false; 
                 bot.clearControlStates();
-                moveLogic(); 
+                moveLogic(); // This now works!
             }, 5000);
         }
     });
+
+    bot.on('error', (err) => console.log('Engine Error:', err.message));
 }
 
 createBot();
