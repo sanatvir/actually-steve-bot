@@ -1,10 +1,10 @@
 const mineflayer = require('mineflayer');
 const express = require('express');
 
-// --- 1. CLOUD UPTIME ENGINE ---
+// --- 1. IMMORTAL CLOUD ENGINE ---
 const app = express();
-app.get('/', (req, res) => res.send('Actually_Steve is Online and Sentient.'));
-app.listen(3000, () => console.log('Keep-alive server on port 3000'));
+app.get('/', (req, res) => res.send('Actually_Steve: 24/7 Sentient Mode Active.'));
+app.listen(3000, () => console.log('Uptime server running on port 3000'));
 
 const botArgs = {
     host: 'iamvir_.aternos.me',
@@ -15,11 +15,13 @@ const botArgs = {
 let bot;
 let isBypassing = false;
 let isEscaping = false;
+let lastPos = null;
+let stuckTicks = 0;
 
 function createBot() {
     bot = mineflayer.createBot(botArgs);
 
-    // --- 2. CHAT & SOCIAL FEATURES ---
+    // --- 2. SOCIAL & CHAT ---
     let lastWelcome = 0;
     bot.on('playerJoined', (player) => {
         const now = Date.now();
@@ -37,100 +39,102 @@ function createBot() {
         }
     });
 
-    // --- 3. THE BRAIN & MOVEMENT ---
+    // --- 3. THE PERFECTED BRAIN ---
     bot.on('spawn', () => {
-        console.log('🐐 GOAT MODE ACTIVATED: All features live.');
+        console.log('🐐 GOAT 24/7: All systems green.');
 
         const moveLogic = () => {
             if (!bot || !bot.entity || isBypassing || isEscaping) return;
 
-            // --- OBSTACLE DETECTION ---
+            // --- STUCK DETECTION ---
+            if (lastPos && bot.entity.position.distanceTo(lastPos) < 0.15) {
+                stuckTicks++;
+            } else {
+                stuckTicks = 0;
+            }
+            lastPos = bot.entity.position.clone();
+
+            // --- SMART NAVIGATION (Anti-Jumping Spasm) ---
             const yaw = bot.entity.yaw;
             const moveDir = new mineflayer.vec3(-Math.sin(yaw), 0, -Math.cos(yaw));
             const blockInFront = bot.blockAt(bot.entity.position.plus(moveDir.scaled(1)));
-            if (blockInFront && blockInFront.boundingBox !== 'empty') {
-                bot.setControlState('jump', true);
+            const isBlocked = blockInFront && blockInFront.boundingBox !== 'empty';
+
+            if (isBlocked) {
+                if (stuckTicks > 4) {
+                    bot.setControlState('jump', false);
+                    bot.look(yaw + (Math.PI / 2 + Math.random()), 0); // Smart turn if stuck
+                    bot.setControlState('forward', true);
+                    stuckTicks = 0;
+                } else {
+                    bot.setControlState('jump', true);
+                }
+            } else {
+                bot.setControlState('jump', false);
             }
 
-            // --- SOCIAL & RANDOM LOOK ---
+            // --- SOCIAL & HUMAN BEHAVIOR ---
             const nearby = bot.nearestEntity((e) => e.type === 'player' || e.type === 'mob');
             const isNear = nearby && bot.entity.position.distanceTo(nearby.position) < 7;
-
             const actions = ['forward', 'back', 'left', 'right'];
             const move = actions[Math.floor(Math.random() * actions.length)];
 
             if (isNear) {
                 bot.lookAt(nearby.position.offset(0, nearby.height, 0));
+                // Add a "Nod" or "Shake" chance
+                if (Math.random() < 0.1) bot.look(bot.entity.yaw, (Math.random() > 0.5 ? 0.5 : -0.5));
             } else {
-                bot.look(yaw + (Math.random() * 2 - 1), (Math.random() * 0.8 - 0.4), false);
+                bot.look(yaw + (Math.random() * 2 - 1), (Math.random() * 0.6 - 0.3), false);
             }
 
-            // --- HUMAN FIDGETS & MOTION ---
+            // --- FIDGETS & EXECUTION ---
             bot.setControlState(move, true);
             if (Math.random() < 0.6) bot.setControlState('sprint', true);
-            if (Math.random() < 0.5) bot.setControlState('jump', true);
             
-            const chance = Math.random();
-            if (chance < 0.12) bot.swingArm('right'); 
-            if (chance < 0.05) bot.setQuickBarSlot(Math.floor(Math.random() * 9));
-            if (chance < 0.03) {
+            const roll = Math.random();
+            if (roll < 0.1) bot.swingArm('right'); 
+            if (roll < 0.05) bot.setQuickBarSlot(Math.floor(Math.random() * 9));
+            if (roll < 0.02) {
                 bot.setControlState('sneak', true);
-                setTimeout(() => bot.setControlState('sneak', false), 400);
+                setTimeout(() => bot.setControlState('sneak', false), 300);
             }
 
             setTimeout(() => {
                 bot.clearControlStates();
-                setTimeout(moveLogic, Math.random() * 120 + 20);
-            }, Math.random() * 2800 + 400);
+                setTimeout(moveLogic, Math.random() * 100 + 10);
+            }, Math.random() * 2500 + 500);
         };
 
-        // --- 4. PATTERN-BREAK BYPASS ---
+        // --- 4. BYPASS LOGIC (10-15m interval, 5-10s pause) ---
         const scheduleBypass = () => {
-            // Wait 10-15 minutes
-            const interval = Math.floor(Math.random() * 300000) + 600000;
             setTimeout(() => {
                 isBypassing = true;
                 bot.clearControlStates();
-                // Pause for 5-10 seconds
-                const pauseDuration = Math.floor(Math.random() * 5000) + 5000;
                 setTimeout(() => {
                     isBypassing = false;
                     moveLogic();
                     scheduleBypass();
-                }, pauseDuration);
-            }, interval);
+                }, Math.random() * 5000 + 5000);
+            }, Math.floor(Math.random() * 300000) + 600000);
         };
 
         moveLogic();
         scheduleBypass();
     });
 
-    // --- 5. REACTIVE COMBAT ---
+    // --- 5. RECOVERY & REJOIN ---
     bot.on('health', () => {
-        if (bot.health < 20 && !isEscaping && !isBypassing) {
+        if (bot.health < 18 && !isEscaping) {
             isEscaping = true;
-            const attacker = bot.nearestEntity();
-            if (attacker) {
-                bot.lookAt(attacker.position);
-                bot.swingArm('right');
-            }
             bot.setControlState('back', true);
             bot.setControlState('sprint', true);
             bot.setControlState('jump', true);
-            setTimeout(() => {
-                isEscaping = false;
-                bot.clearControlStates();
-            }, 5000);
+            setTimeout(() => { isEscaping = false; bot.clearControlStates(); }, 5000);
         }
     });
 
-    // --- 6. 24/7 PERSISTENCE ---
-    bot.on('error', (err) => console.log('Connection Error:', err));
-    bot.on('end', () => {
-        const rejoinDelay = Math.floor(Math.random() * 5000) + 5000;
-        console.log(`Lost connection. Rejoining in ${rejoinDelay/1000}s...`);
-        setTimeout(createBot, rejoinDelay);
-    });
+    bot.on('error', (err) => console.log('Err:', err.message));
+    bot.on('end', () => setTimeout(createBot, 10000));
 }
 
 createBot();
