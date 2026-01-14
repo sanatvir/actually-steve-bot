@@ -77,14 +77,6 @@ function createBot() {
     });
 
     // --- GREETING ---
-    let lastWelcome = 0;
-    bot.on('playerJoined', (player) => {
-        const now = Date.now();
-        if (player.username !== bot.username && now - lastWelcome > 300000) { 
-            bot.chat(`Hay Mate What's Up? I am the savior of this server! :)`);
-            lastWelcome = now;
-        }
-    });
 
     // --- SPAWN EVENTS ---
     bot.on('spawn', () => {
