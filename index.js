@@ -1,86 +1,63 @@
 const mineflayer = require('mineflayer');
 const express = require('express');
 
-// 1. WEB HEARTBEAT (KEEPS KOYEB ACTIVE)
+// --- WEB SERVER FOR KOYEB & UPTIMEROBOT ---
 const app = express();
-app.get('/', (req, res) => res.send('Actually_Steve: Online and Guarding'));
+app.get('/', (req, res) => res.send('Actually_Steve is Online!'));
 app.listen(3000, () => console.log('Web monitor on port 3000'));
 
-// 2. CONFIG
+// --- BOT SETTINGS ---
 const botArgs = {
     host: 'iamvir_.aternos.me', 
-    port: 60814,                
     username: 'Actually_Steve',
-    version: '1.20.1',          
+    version: '1.20.1', // Ensure this matches your Aternos version
 };
 
 let bot;
-const welcomedPlayers = new Set(); // Steve's Anti-Spam Memory
 
-const createBot = () => {
+function createBot() {
     bot = mineflayer.createBot(botArgs);
 
-    // --- WELCOME LOGIC (PROTECTED FROM REJOIN SPAM) ---
+    // --- WELCOME MESSAGE ---
+    let lastWelcome = 0;
     bot.on('playerJoined', (player) => {
-        if (player.username === bot.username) return;
-
-        // If the player is NOT in memory, welcome them
-        if (!welcomedPlayers.has(player.username)) {
-            welcomedPlayers.add(player.username);
-            
-            setTimeout(() => {
-                bot.chat("Hay Mate What's Up? I am the savior of this server! :)");
-            }, 3000);
-
-            // They stay in memory for 5 minutes (300,000ms)
-            // Even if they leave and rejoin, they won't be welcomed again until this time passes
-            setTimeout(() => {
-                welcomedPlayers.delete(player.username);
-            }, 300000); 
+        const now = Date.now();
+        if (player.username !== bot.username && now - lastWelcome > 300000) { 
+            bot.chat(`Hay Mate What's Up? I am the savior of this server! :)`);
+            lastWelcome = now;
         }
     });
 
-    // --- CHAT COMMANDS ---
-    bot.on('chat', (username, message) => {
-        if (username === bot.username) return;
-        if (message.toLowerCase() === 'actually_steve status') {
-            bot.chat("I am guarding the server boss! ;)");
-        }
-    });
-
+    // --- HUMAN MOVEMENT ENGINE (2-8 seconds) ---
     bot.on('spawn', () => {
-        console.log('Actually_Steve spawned. Speed: 2-8s. Rejoin: 30s Safe Mode.');
-        startMoving();
-    });
-
-    // --- MOVEMENT ENGINE (2-8s) ---
-    const startMoving = () => {
-        if (!bot || !bot.entity) return;
-        const actions = ['forward', 'back', 'left', 'right', 'jump', 'sneak'];
-        const randomAction = actions[Math.floor(Math.random() * actions.length)];
-        const shouldJump = Math.random() > 0.7; 
+        console.log('Actually_Steve has joined the server!');
         
-        bot.setControlState(randomAction, true);
-        if (shouldJump) bot.setControlState('jump', true);
-        
-        const holdTime = 250; 
-        setTimeout(() => {
-            bot.setControlState(randomAction, false);
-            if (shouldJump) bot.setControlState('jump', false);
-            bot.look(Math.random() * 6.2, (Math.random() - 0.5) * 2);
+        setInterval(() => {
+            const actions = ['forward', 'back', 'left', 'right', 'jump', 'sneak'];
+            const randomAction = actions[Math.floor(Math.random() * actions.length)];
             
-            // Random delay between 2 and 8 seconds
-            const nextDelay = Math.random() * 6000 + 2000;
-            setTimeout(startMoving, nextDelay);
-        }, holdTime);
-    };
-
-    bot.on('error', (err) => console.log(`Error: ${err.code}`));
-    
-    bot.on('end', () => {
-        console.log('Disconnected. Waiting 30s to rejoin...');
-        setTimeout(createBot, 30000); 
+            bot.setControlState(randomAction, true);
+            setTimeout(() => bot.setControlState(randomAction, false), 500);
+            
+            // Randomly look around
+            const yaw = Math.random() * Math.PI * 2;
+            const pitch = (Math.random() - 0.5) * Math.PI;
+            bot.look(yaw, pitch);
+            
+        }, Math.floor(Math.random() * 6000) + 2000); 
     });
-};
 
+    // --- FAST REJOIN LOGIC (5-10 seconds) ---
+    bot.on('end', () => {
+        const rejoinTime = Math.floor(Math.random() * (10000 - 5000 + 1)) + 5000;
+        console.log(`Disconnected. Rejoining in ${rejoinTime / 1000} seconds...`);
+        setTimeout(createBot, rejoinTime);
+    });
+
+    // --- ERROR LOGGING ---
+    bot.on('error', (err) => console.log(`Error: ${err.message}`));
+    bot.on('kicked', (reason) => console.log(`Kicked for: ${reason}`));
+}
+
+// Start the bot for the first time
 createBot();
