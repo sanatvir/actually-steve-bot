@@ -8,7 +8,7 @@ app.get('/', (req, res) => res.send('Actually_Steve: Online & Fixed.'));
 app.listen(PORT, '0.0.0.0', () => console.log(`Uptime server live on port ${PORT}`));
 
 const botArgs = {
-    host: 'iamvir_.aternos.me',
+    host: 'PIXELSMP-coHE.aternos.me',
     username: 'Actually_Steve',
     version: '1.20.1',
 };
