@@ -1,11 +1,12 @@
 const mineflayer = require('mineflayer');
 const express = require('express');
+const vec3 = require('vec3'); // Fixed: Added required library for coordinates
 
 // --- 1. CLOUD UPTIME ENGINE ---
-// Keeps the bot alive on services like Koyeb/Render
 const app = express();
+const PORT = process.env.PORT || 3000;
 app.get('/', (req, res) => res.send('Actually_Steve: Sentient Stealth Engine Online.'));
-app.listen(3000);
+app.listen(PORT, '0.0.0.0', () => console.log(`Uptime server live on port ${PORT}`));
 
 const botArgs = {
     host: 'iamvir_.aternos.me',
@@ -23,7 +24,6 @@ function createBot() {
     bot = mineflayer.createBot(botArgs);
 
     // --- 2. REJOIN LOGIC (5-15s RANDOM) ---
-    // Essential to avoid "Spam Join" bans
     bot.on('end', () => {
         const delay = Math.floor(Math.random() * 10000) + 5000; 
         console.log(`Connection lost. Rejoining in ${delay / 1000}s...`);
@@ -31,30 +31,30 @@ function createBot() {
     });
 
     bot.on('error', (err) => console.log('Engine Error:', err.message));
-    bot.on('kicked', (reason) => console.log('Kicked:', reason));
+    bot.on('kicked', (reason) => console.log('Kicked for:', reason));
 
-    // --- 3. SOCIAL CHAT ---
+    // --- 3. SOCIAL CHAT (Greeting Feature) ---
     let lastWelcome = 0;
     bot.on('playerJoined', (player) => {
         const now = Date.now();
+        // Only greets if it's not the bot itself and 5 mins have passed since last greeting
         if (player.username !== bot.username && now - lastWelcome > 300000) { 
             bot.chat(`Hay Mate What's Up? I am the savior of this server! :)`);
             lastWelcome = now;
         }
     });
 
-    // --- 4. THE BRAIN (Movement & Intelligence) ---
+    // --- 4. THE SENTIENT BRAIN ---
     bot.on('spawn', () => {
-        console.log('🐐 STEALTH GOAT: Zero-Idle & Smart Navigation Active.');
+        console.log('🐐 STEALTH GOAT: All Features Active.');
 
         const moveLogic = () => {
-            // Safety check to prevent logic overlap during pauses/escapes
             if (!bot || !bot.entity || isBypassing || isEscaping) {
                 setTimeout(moveLogic, 500);
                 return;
             }
 
-            // --- STUCK DETECTION ---
+            // --- STUCK DETECTION & SMART RECOVERY ---
             if (lastPosition && bot.entity.position.distanceTo(lastPosition) < 0.15) {
                 stuckTicks++;
             } else {
@@ -63,13 +63,13 @@ function createBot() {
             lastPosition = bot.entity.position.clone();
 
             const yaw = bot.entity.yaw;
-            const moveDir = new mineflayer.vec3(-Math.sin(yaw), 0, -Math.cos(yaw));
-            const block = bot.blockAt(bot.entity.position.plus(moveDir.scaled(1)));
+            // FIXED: Using the vec3 library correctly
+            const moveDir = new vec3(-Math.sin(yaw), 0, -Math.cos(yaw));
+            const blockInFront = bot.blockAt(bot.entity.position.plus(moveDir.scaled(1)));
             
-            // --- SMART JUMPING & NAVIGATION ---
-            if (block && block.boundingBox !== 'empty') {
+            if (blockInFront && blockInFront.boundingBox !== 'empty') {
                 if (stuckTicks > 3) {
-                    // Turn 90 degrees if jumping doesn't work (Anti-Stuck)
+                    // Turn away if jumping fails
                     bot.look(yaw + (Math.random() > 0.5 ? 1.5 : -1.5), 0);
                     stuckTicks = 0;
                 } else {
@@ -79,28 +79,24 @@ function createBot() {
                 bot.setControlState('jump', false);
             }
 
-            // --- PERPETUAL MOTION (No Idle) ---
+            // --- PERPETUAL MOTION ---
             const actions = ['forward', 'left', 'right'];
             bot.setControlState(actions[Math.floor(Math.random() * 3)], true);
-            bot.setControlState('sprint', Math.random() > 0.1); // Humanized speed variation
+            bot.setControlState('sprint', Math.random() > 0.1);
 
-            // --- HUMANIZED LOOKING (With Offset) ---
+            // --- HUMANIZED LOOKING (Head Tracking + Random Offset) ---
             const nearby = bot.nearestEntity((e) => e.type === 'player');
             if (nearby && bot.entity.position.distanceTo(nearby.position) < 8) {
-                // Mimics human "head lag" by not tracking perfectly
-                const offset = new mineflayer.vec3((Math.random() - 0.5), nearby.height * 0.8, (Math.random() - 0.5));
+                const offset = new vec3((Math.random() - 0.5), nearby.height * 0.8, (Math.random() - 0.5));
                 bot.lookAt(nearby.position.plus(offset));
             } else {
-                // Natural head bobbing/wandering
                 bot.look(yaw + (Math.random() * 0.4 - 0.2), (Math.random() * 0.2 - 0.1), false);
             }
 
-            // --- FIDGETS & INVENTORY SHUFFLE ---
-            const roll = Math.random();
-            if (roll < 0.1) bot.swingArm('right'); 
-            if (roll < 0.05) bot.setQuickBarSlot(Math.floor(Math.random() * 9));
+            // --- FIDGETS & INV SHUFFLE ---
+            if (Math.random() < 0.1) bot.swingArm('right'); 
+            if (Math.random() < 0.05) bot.setQuickBarSlot(Math.floor(Math.random() * 9));
 
-            // Decision speed mimics human thinking (0.4s to 1.2s)
             setTimeout(moveLogic, Math.random() * 800 + 400); 
         };
 
@@ -113,7 +109,7 @@ function createBot() {
                     isBypassing = false;
                     moveLogic();
                     scheduleBypass();
-                }, Math.random() * 5000 + 5000); // 5-10 second break
+                }, Math.random() * 5000 + 5000);
             }, 720000); 
         };
 
@@ -123,10 +119,8 @@ function createBot() {
 
     // --- 6. REACTIVE COMBAT ESCAPE ---
     bot.on('health', () => {
-        // If hit, look at attacker, swing, and sprint away
         if (bot.health < 19 && !isEscaping) {
             isEscaping = true;
-            console.log('⚠️ Combat Detected! Escaping...');
             bot.setControlState('back', true);
             bot.setControlState('sprint', true);
             bot.setControlState('jump', true);
