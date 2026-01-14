@@ -1,9 +1,8 @@
 const mineflayer = require('mineflayer');
 const express = require('express');
 
-// --- CLOUD KEEP-ALIVE ---
 const app = express();
-app.get('/', (req, res) => res.send('Actually_Steve is Fully Conscious and Random.'));
+app.get('/', (req, res) => res.send('Actually_Steve is Surviving and Shuffling.'));
 app.listen(3000);
 
 const botArgs = {
@@ -14,109 +13,103 @@ const botArgs = {
 
 let bot;
 let isBypassing = false;
+let isEscaping = false;
 
 function createBot() {
     bot = mineflayer.createBot(botArgs);
 
-    // --- 1. HUMAN SOCIAL CHAT ---
-    let lastWelcome = 0;
-    bot.on('playerJoined', (player) => {
-        const now = Date.now();
-        // Welcome nearby players, but only once every 5 minutes to avoid bot-spam flags
-        if (player.username !== bot.username && now - lastWelcome > 300000) { 
-            bot.chat(`Hay Mate What's Up? I am the savior of this server! :)`);
-            lastWelcome = now;
-        }
-    });
+    // --- 1. REACTIVE COMBAT (Self-Defense & Escape) ---
+    bot.on('health', () => {
+        // If health drops, we assume we are being attacked
+        if (bot.health < 20 && !isEscaping && !isBypassing) {
+            isEscaping = true;
+            console.log('⚠️ Under attack! Executing panic escape...');
+            
+            const attacker = bot.nearestEntity((e) => e.type === 'player' || e.type === 'mob');
+            if (attacker) {
+                bot.lookAt(attacker.position.offset(0, attacker.height, 0));
+                bot.swingArm('right'); // "Get away from me" punch
+            }
 
-    bot.on('chat', (username, message) => {
-        if (username === bot.username) return;
-        const msg = message.toLowerCase();
-        if (msg.includes('actually_steve') || msg.includes('status')) {
-            bot.chat(`I'm here and watching everything. Currently in Goat Stealth Mode. B)`);
+            // Sprint in the opposite direction
+            bot.clearControlStates();
+            bot.setControlState('back', true);
+            bot.setControlState('sprint', true);
+            bot.setControlState('jump', true);
+
+            setTimeout(() => {
+                isEscaping = false;
+                bot.clearControlStates();
+                console.log('Safe (hopefully). Resuming randomness.');
+            }, 5000); // Sprint away for 5 seconds
         }
     });
 
     bot.on('spawn', () => {
-        console.log('🐐 GOAT MODE: Initializing chaotic human behavior...');
+        console.log('🐐 SURVIVOR GOAT: Combat and Inventory logic online.');
 
         const moveLogic = () => {
-            if (!bot || !bot.entity || isBypassing) return;
+            if (!bot || !bot.entity || isBypassing || isEscaping) return;
 
-            // --- 2. THE "HUMAN FIDGET" ENGINE ---
-            const fidgetRoll = Math.random();
-            if (fidgetRoll < 0.12) bot.swingArm('right');     // Randomly punch air/blocks
-            if (fidgetRoll < 0.05) bot.setControlState('sneak', true);  // Quick crouch
-            if (fidgetRoll > 0.90) bot.setControlState('sneak', false); // Stop crouching
-            
-            // Randomly swap hotbar slots (looks like checking inventory)
-            if (fidgetRoll < 0.03) bot.setQuickBarSlot(Math.floor(Math.random() * 9));
-
-            // --- 3. SOCIAL TARGETING & MOVEMENT ---
-            const nearbyEntity = bot.nearestEntity((e) => e.type === 'player' || e.type === 'mob');
-            const isNear = nearbyEntity && bot.entity.position.distanceTo(nearbyEntity.position) < 7;
-
-            // Pick a totally random direction every cycle
-            const actions = ['forward', 'back', 'left', 'right'];
-            const moveDirection = actions[Math.floor(Math.random() * actions.length)];
-
-            if (isNear) {
-                // LOCK ON: Look at player but KEEPS MOVING/STRAFING
-                bot.lookAt(nearbyEntity.position.offset(0, nearbyEntity.height, 0));
-                bot.setControlState(moveDirection, true);
-                if (Math.random() < 0.7) bot.setControlState('jump', true); // Jump while looking
-            } else {
-                // WANDER: Look at random 3D points (sky, ground, sides)
-                const yaw = bot.entity.yaw + (Math.random() * 4 - 2);
-                const pitch = (Math.random() * 1.2 - 0.6); 
-                bot.look(yaw, pitch, false);
-                bot.setControlState(moveDirection, true);
+            // --- 2. INVENTORY SHUFFLE (Human Fidget) ---
+            if (Math.random() < 0.05) {
+                const randomSlot = Math.floor(Math.random() * 9);
+                bot.setQuickBarSlot(randomSlot);
             }
 
-            // --- 4. ULTIMATE RANDOM TIMING ---
+            // --- 3. SMART OBSTACLE BRAIN ---
+            const moveDir = new mineflayer.vec3(-Math.sin(bot.entity.yaw), 0, -Math.cos(bot.entity.yaw));
+            const blockInFront = bot.blockAt(bot.entity.position.plus(moveDir.scaled(1)));
+            if (blockInFront && blockInFront.boundingBox !== 'empty') {
+                bot.setControlState('jump', true);
+            }
+
+            // --- 4. DYNAMIC MOVEMENT & SOCIAL LOOK ---
+            const nearbyEntity = bot.nearestEntity((e) => e.type === 'player' || e.type === 'mob');
+            const isNear = nearbyEntity && bot.entity.position.distanceTo(nearbyEntity.position) < 7;
+            const actions = ['forward', 'back', 'left', 'right'];
+            const move = actions[Math.floor(Math.random() * actions.length)];
+
+            if (isNear) {
+                bot.lookAt(nearbyEntity.position.offset(0, nearbyEntity.height, 0));
+            } else {
+                bot.look(bot.entity.yaw + (Math.random() * 4 - 2), (Math.random() * 1.2 - 0.6), false);
+            }
+
+            bot.setControlState(move, true);
             if (Math.random() < 0.6) bot.setControlState('sprint', true);
             if (Math.random() < 0.5) bot.setControlState('jump', true);
-
-            // Each movement lasts between 0.2 and 3.2 seconds
-            const duration = Math.random() * 3000 + 200;
+            if (Math.random() < 0.1) bot.swingArm('right');
 
             setTimeout(() => {
                 bot.clearControlStates();
-                // Near-zero gap between moves (10ms to 120ms)
-                setTimeout(moveLogic, Math.random() * 110 + 10);
-            }, duration);
+                setTimeout(moveLogic, Math.random() * 120 + 20);
+            }, Math.random() * 2500 + 400);
         };
 
-        // --- 5. THE PATTERN-BREAK BYPASS (10-15m interval, 5-10s pause) ---
+        // --- 5. THE 10-15m BYPASS ---
         const scheduleBypass = () => {
-            const nextBypass = Math.floor(Math.random() * (900000 - 600000 + 1)) + 600000;
             setTimeout(() => {
-                console.log('🤫 Anti-Detection Pause: Staying still for a few seconds...');
                 isBypassing = true;
                 bot.clearControlStates();
-                
-                const pauseTime = Math.floor(Math.random() * (10000 - 5000 + 1)) + 5000;
                 setTimeout(() => {
                     isBypassing = false;
-                    console.log('🚀 Resuming relentless activity.');
                     moveLogic(); 
                     scheduleBypass(); 
-                }, pauseTime);
-            }, nextBypass);
+                }, Math.random() * 5000 + 5000);
+            }, Math.floor(Math.random() * 300000) + 600000);
         };
 
         moveLogic();
         scheduleBypass();
     });
 
-    // --- 6. PERSISTENT AUTO-REJOIN ---
-    bot.on('end', () => {
-        const time = Math.floor(Math.random() * 5000) + 5000;
-        console.log(`Connection lost. Rejoining in ${time/1000}s...`);
-        setTimeout(createBot, time);
+    bot.on('chat', (username, message) => {
+        if (username === bot.username) return;
+        if (message.toLowerCase().includes('status')) bot.chat('Surviving and thriving. B)');
     });
 
-    bot.on('error', (err) => console.log('Bot Error:', err));
+    bot.on('end', () => setTimeout(createBot, 5000));
 }
 
 createBot();
