@@ -1,10 +1,11 @@
 const mineflayer = require('mineflayer');
 const express = require('express');
 
-// --- 1. IMMORTAL CLOUD ENGINE ---
+// --- 1. CLOUD UPTIME ENGINE ---
+// Keeps the bot alive on services like Koyeb/Render
 const app = express();
-app.get('/', (req, res) => res.send('Actually_Steve is Online. Status command disabled.'));
-app.listen(3000, () => console.log('Uptime server running on port 3000'));
+app.get('/', (req, res) => res.send('Actually_Steve: Sentient Stealth Engine Online.'));
+app.listen(3000);
 
 const botArgs = {
     host: 'iamvir_.aternos.me',
@@ -15,13 +16,24 @@ const botArgs = {
 let bot;
 let isBypassing = false;
 let isEscaping = false;
-let lastPos = null;
+let lastPosition = null;
 let stuckTicks = 0;
 
 function createBot() {
     bot = mineflayer.createBot(botArgs);
 
-    // --- 2. SOCIAL CHAT (Only Welcome) ---
+    // --- 2. REJOIN LOGIC (5-15s RANDOM) ---
+    // Essential to avoid "Spam Join" bans
+    bot.on('end', () => {
+        const delay = Math.floor(Math.random() * 10000) + 5000; 
+        console.log(`Connection lost. Rejoining in ${delay / 1000}s...`);
+        setTimeout(createBot, delay);
+    });
+
+    bot.on('error', (err) => console.log('Engine Error:', err.message));
+    bot.on('kicked', (reason) => console.log('Kicked:', reason));
+
+    // --- 3. SOCIAL CHAT ---
     let lastWelcome = 0;
     bot.on('playerJoined', (player) => {
         const now = Date.now();
@@ -31,32 +43,34 @@ function createBot() {
         }
     });
 
-    // --- 3. THE PERFECTED BRAIN ---
+    // --- 4. THE BRAIN (Movement & Intelligence) ---
     bot.on('spawn', () => {
-        console.log('🐐 GOAT 24/7: Stealth Mode (No Status Cmd) Active.');
+        console.log('🐐 STEALTH GOAT: Zero-Idle & Smart Navigation Active.');
 
         const moveLogic = () => {
-            if (!bot || !bot.entity || isBypassing || isEscaping) return;
+            // Safety check to prevent logic overlap during pauses/escapes
+            if (!bot || !bot.entity || isBypassing || isEscaping) {
+                setTimeout(moveLogic, 500);
+                return;
+            }
 
-            // STUCK DETECTION
-            if (lastPos && bot.entity.position.distanceTo(lastPos) < 0.15) {
+            // --- STUCK DETECTION ---
+            if (lastPosition && bot.entity.position.distanceTo(lastPosition) < 0.15) {
                 stuckTicks++;
             } else {
                 stuckTicks = 0;
             }
-            lastPos = bot.entity.position.clone();
+            lastPosition = bot.entity.position.clone();
 
-            // SMART NAVIGATION
             const yaw = bot.entity.yaw;
             const moveDir = new mineflayer.vec3(-Math.sin(yaw), 0, -Math.cos(yaw));
-            const blockInFront = bot.blockAt(bot.entity.position.plus(moveDir.scaled(1)));
-            const isBlocked = blockInFront && blockInFront.boundingBox !== 'empty';
-
-            if (isBlocked) {
-                if (stuckTicks > 4) {
-                    bot.setControlState('jump', false);
-                    bot.look(yaw + (Math.PI / 2 + Math.random()), 0); 
-                    bot.setControlState('forward', true);
+            const block = bot.blockAt(bot.entity.position.plus(moveDir.scaled(1)));
+            
+            // --- SMART JUMPING & NAVIGATION ---
+            if (block && block.boundingBox !== 'empty') {
+                if (stuckTicks > 3) {
+                    // Turn 90 degrees if jumping doesn't work (Anti-Stuck)
+                    bot.look(yaw + (Math.random() > 0.5 ? 1.5 : -1.5), 0);
                     stuckTicks = 0;
                 } else {
                     bot.setControlState('jump', true);
@@ -65,36 +79,32 @@ function createBot() {
                 bot.setControlState('jump', false);
             }
 
-            // SOCIAL LOOK & MOVEMENT
-            const nearby = bot.nearestEntity((e) => e.type === 'player' || e.type === 'mob');
-            const isNear = nearby && bot.entity.position.distanceTo(nearby.position) < 7;
-            const actions = ['forward', 'back', 'left', 'right'];
-            const move = actions[Math.floor(Math.random() * actions.length)];
+            // --- PERPETUAL MOTION (No Idle) ---
+            const actions = ['forward', 'left', 'right'];
+            bot.setControlState(actions[Math.floor(Math.random() * 3)], true);
+            bot.setControlState('sprint', Math.random() > 0.1); // Humanized speed variation
 
-            if (isNear) {
-                bot.lookAt(nearby.position.offset(0, nearby.height, 0));
-                if (Math.random() < 0.1) bot.look(bot.entity.yaw, (Math.random() > 0.5 ? 0.4 : -0.4)); // Nod/Shake
+            // --- HUMANIZED LOOKING (With Offset) ---
+            const nearby = bot.nearestEntity((e) => e.type === 'player');
+            if (nearby && bot.entity.position.distanceTo(nearby.position) < 8) {
+                // Mimics human "head lag" by not tracking perfectly
+                const offset = new mineflayer.vec3((Math.random() - 0.5), nearby.height * 0.8, (Math.random() - 0.5));
+                bot.lookAt(nearby.position.plus(offset));
             } else {
-                bot.look(yaw + (Math.random() * 2 - 1), (Math.random() * 0.6 - 0.3), false);
+                // Natural head bobbing/wandering
+                bot.look(yaw + (Math.random() * 0.4 - 0.2), (Math.random() * 0.2 - 0.1), false);
             }
 
-            bot.setControlState(move, true);
-            if (Math.random() < 0.6) bot.setControlState('sprint', true);
-            
+            // --- FIDGETS & INVENTORY SHUFFLE ---
             const roll = Math.random();
             if (roll < 0.1) bot.swingArm('right'); 
             if (roll < 0.05) bot.setQuickBarSlot(Math.floor(Math.random() * 9));
-            if (roll < 0.02) {
-                bot.setControlState('sneak', true);
-                setTimeout(() => bot.setControlState('sneak', false), 300);
-            }
 
-            setTimeout(() => {
-                bot.clearControlStates();
-                setTimeout(moveLogic, Math.random() * 100 + 10);
-            }, Math.random() * 2500 + 500);
+            // Decision speed mimics human thinking (0.4s to 1.2s)
+            setTimeout(moveLogic, Math.random() * 800 + 400); 
         };
 
+        // --- 5. AFK BYPASS (Every 12 mins) ---
         const scheduleBypass = () => {
             setTimeout(() => {
                 isBypassing = true;
@@ -103,27 +113,30 @@ function createBot() {
                     isBypassing = false;
                     moveLogic();
                     scheduleBypass();
-                }, Math.random() * 5000 + 5000);
-            }, Math.floor(Math.random() * 300000) + 600000);
+                }, Math.random() * 5000 + 5000); // 5-10 second break
+            }, 720000); 
         };
 
         moveLogic();
         scheduleBypass();
     });
 
-    // --- 4. RECOVERY & REJOIN ---
+    // --- 6. REACTIVE COMBAT ESCAPE ---
     bot.on('health', () => {
-        if (bot.health < 18 && !isEscaping) {
+        // If hit, look at attacker, swing, and sprint away
+        if (bot.health < 19 && !isEscaping) {
             isEscaping = true;
+            console.log('⚠️ Combat Detected! Escaping...');
             bot.setControlState('back', true);
             bot.setControlState('sprint', true);
             bot.setControlState('jump', true);
-            setTimeout(() => { isEscaping = false; bot.clearControlStates(); }, 5000);
+            setTimeout(() => { 
+                isEscaping = false; 
+                bot.clearControlStates();
+                moveLogic(); 
+            }, 5000);
         }
     });
-
-    bot.on('error', (err) => console.log('Err:', err.message));
-    bot.on('end', () => setTimeout(createBot, 10000));
 }
 
 createBot();
